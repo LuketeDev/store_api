@@ -31,12 +31,23 @@ class ProductUsecase:
     async def query(self) -> List[ProductOut]:
         return [ProductOut(**item) async for item in self.collection.find()]
 
+    async def query_filter(self, min_price: float, max_price: float) -> List[dict]:
+        cursor = self.database["products"].find(
+            {"price": {"$gte": min_price, "$lte": max_price}}
+        )
+
+        # Converte o cursor em uma lista
+        results = await cursor.to_list(length=None)
+        return results
+
     async def update(self, id: UUID, body: ProductUpdate) -> ProductUpdateOut:
         result = await self.collection.find_one_and_update(
             filter={"id": id},
             update={"$set": body.model_dump(exclude_none=True)},
             return_document=pymongo.ReturnDocument.AFTER,
         )
+        if result is None:
+            raise NotFoundException(message=f"Produto com id {id} não encontrado.")
 
         return ProductUpdateOut(**result)
 
